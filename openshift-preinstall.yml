@@ -1,0 +1,146 @@
+---
+#Automation script for this installing manual http://docs.openshift.org/latest/getting_started/setup.html
+- name: Run pre-install configuring...
+  hosts: openshift-host
+  user: root
+  sudo: yes
+  tasks:
+       - name: install the latest version of Ruby or keep existing
+         yum: name=ruby state=present
+
+       - name: install the latest version of Curl or keep existing
+         yum: name=curl state=present
+
+       - name: Creating the directory for Openshift
+         shell: mkdir /tmp/openshift
+         args:
+           creates: /tmp/openshift/
+
+       - name: Creating the directory for nsenter
+         shell: mkdir /opt/nsenter
+         args:
+           creates: /opt/nsenter/
+
+
+       - name: Remove Network Manager
+         yum: name=NetworkManager* state=absent 
+
+       - name: install the latest version of wget or keep existing
+         yum: name=wget state=present
+
+       - name: install the latest version of git or keep existing
+         yum: name=git state=present
+
+       - name: installing Docker
+         yum: name=docker state=present
+
+       - name: installing rest packages
+         yum: name=vim-enhanced state=present
+         yum: name=net-tools state=present
+         yum: name=bind-utils state=present
+         yum: name=tmux state=present
+         yum: name=iptables-services state=present
+         yum: name=bridge-utils state=present
+
+
+       - name: Stop firewalld
+         service: name=firewalld state=stopped
+
+       - name: Disable firewalld starting on boot
+         service: name=firewalld enabled=no
+
+
+       - name: Checking if the firewall rules already exist or print error if the rule is missing
+         command: iptables -C INPUT -p tcp -m state --state NEW -m tcp --dport 22 -j ACCEPT
+         register: result
+         ignore_errors: True
+
+       - name: Add rule to firewall
+         command: iptables -A INPUT -p tcp -m state --state NEW -m tcp --dport 22 -j ACCEPT
+         when: result.stderr != ""
+
+       - name: Checking if the firewall rules already exist or print error if the rule is missing
+         command: iptables -C INPUT -m state --state RELATED,ESTABLISHED -j ACCEPT
+         register: result
+         ignore_errors: True
+
+       - name: Add rule to firewall
+         command: iptables -A INPUT -m state --state RELATED,ESTABLISHED -j ACCEPT
+         when: result.stderr != ""
+
+       - name: Checking if the firewall rules already exist or print error if the rule is missing
+         command: iptables -C INPUT -p icmp -j ACCEPT
+         register: result
+         ignore_errors: True
+
+       - name: Add rule to firewall
+         command: iptables -A INPUT -p icmp -j ACCEPT
+         when: result.stderr != ""
+
+       - name: Checking if the firewall rules already exist or print error if the rule is missing
+         command: iptables -C INPUT -p tcp -m state --state NEW -m tcp --dport 10250 -j ACCEPT
+         register: result
+         ignore_errors: True
+
+       - name: Add rule to firewall
+         command: iptables -A INPUT -p tcp -m state --state NEW -m tcp --dport 10250 -j ACCEPT
+         when: result.stderr != ""
+
+       - name: Checking if the firewall rules already exist or print error if the rule is missing
+         command: iptables -C INPUT -p tcp -m state --state NEW -m tcp --dport 8443:8444 -j ACCEPT
+         register: result
+         ignore_errors: True
+
+       - name: Add rule to firewall
+         command: iptables -A INPUT -p tcp -m state --state NEW -m tcp --dport 8443:8444 -j ACCEPT
+         when: result.stderr != ""
+
+       - name: Checking if the firewall rules already exist or print error if the rule is missing
+         command: iptables -C INPUT -p tcp -m state --state NEW -m tcp --dport 7001 -j ACCEPT
+         register: result
+         ignore_errors: True
+
+       - name: Add rule to firewall
+         command: iptables -A INPUT -p tcp -m state --state NEW -m tcp --dport 7001 -j ACCEPT
+         when: result.stderr != ""
+
+       - name: Checking if the firewall rules already exist or print error if the rule is missing
+         command: iptables -C INPUT -p tcp -m state --state NEW -m tcp --dport 4001 -j ACCEPT
+         register: result
+         ignore_errors: True
+
+       - name: Add rule to firewall
+         command: iptables -A INPUT -p tcp -m state --state NEW -m tcp --dport 4001 -j ACCEPT
+         when: result.stderr != ""
+
+       - name: Checking if the firewall rules already exist or print error if the rule is missing
+         command: iptables -C INPUT -p tcp -m state --state NEW -m tcp --dport 443 -j ACCEPT
+         register: result
+         ignore_errors: True
+
+       - name: Add rule to firewall
+         command: iptables -A INPUT -p tcp -m state --state NEW -m tcp --dport 443 -j ACCEPT
+         when: result.stderr != ""
+ 
+       - name: Checking if the firewall rules already exist or print error if the rule is missing
+         command: iptables -C INPUT -p tcp -m state --state NEW -m tcp --dport 80 -j ACCEPT
+         register: result
+         ignore_errors: True
+
+       - name: Add rule to firewall
+         command: iptables -A INPUT -p tcp -m state --state NEW -m tcp --dport 80 -j ACCEPT
+         when: result.stderr != ""
+
+
+       - name: Saving firewall rules
+         shell: iptables-save > /etc/sysconfig/iptables
+    
+       - name: Enable iptables
+         service: name=iptables enabled=yes
+         service: name=iptables state=started
+
+
+       - name: Enable and start the Docker service
+         service: name=docker enabled=yes
+         service: name=docker state=started
+
