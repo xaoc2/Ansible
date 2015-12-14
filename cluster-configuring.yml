@@ -1,0 +1,14 @@
+
+---
+#Automation script
+#maintainer Dmitriy Lifanov 
+#mailto:lifanov.d@mail.ru
+
+    - name: Check Yandexer IP    
+      shell: docker inspect yandexer | grep IPAddress | cut -d '"' -f 4
+      register: yandexer_ip
+
+    - name: Add Yandexer to Ansible hosts
+      shell: sed -i '/\[yandexer\]/{p;:a;N;/\[yandexer_db\]/!ba;s/.*\n/{{yandexer_ip.stdout}}\n/};' /etc/ansible/hosts
+
+

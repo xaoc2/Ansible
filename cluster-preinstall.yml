@@ -1,0 +1,101 @@
+---
+#Automation script
+#maintainer Dmitriy Lifanov 
+#mailto:lifanov.d@mail.ru
+- name: Run setup
+  hosts: 127.0.0.1
+  connection: local
+  sudo: yes
+  tasks:
+
+
+   - name: Remove Python-pip if exist and install the latest version
+     apt: name=python-pip state=absent
+     ignore_errors: True
+
+
+   - shell: wget https://bootstrap.pypa.io/get-pip.py -P ~/pip
+   - shell: python ~/pip/get-pip.py
+
+   - name: Install Docker-py
+     pip: name=docker-py
+
+   - name: Add the Docker repository key to local keychain.
+     shell: apt-key adv --keyserver hkp://keyserver.ubuntu.com:80 --recv-keys 36A1D7869245C8950F966E92D8576A8BA88D21E9
+
+   - name: Add the Docker repository to apt sources list 
+     shell: echo 'deb https://get.docker.com/ubuntu docker main' > /etc/apt/sources.list.d/docker.list   
+
+
+   - name: Updating cache...
+     apt: update_cache=yes
+     ignore_errors: True
+
+
+   - name: installing the latest version of Docker
+     apt: name=lxc-docker state=latest
+     ignore_errors: True
+     
+   - name: Start Docker...
+     shell: service docker restart
+
+   - name: Checking if the images were created previously. For new install prints 'failed', it's OK!
+     command: docker images | grep yandexer
+     register: yandexer_image
+     ignore_errors: True
+
+     
+   - name: Build Yandexer image from Dockerfile...
+     shell: docker build -t ubuntu/yandexer /etc/ansible/yandexer
+     when: yandexer_image != ""
+
+
+   - name: Checking if the containers were created previously. For new install prints 'failed', it's OK!
+     command: docker ps -a | grep yandexer
+     register: yandexer_con
+     ignore_errors: True
+
+   - name: Run the container from latest Ubuntu image
+     shell: docker run -h 'yandexer' --name yandexer -dt ubuntu/yandexer /bin/bash
+     when: yandexer_con != ""
+
+   - shell: docker start yandexer
+
+   - command: docker images | grep pgsql_yr
+     register: pgsql_image
+     ignore_errors: True
+
+   - name: Build Yandexer Database image from Dockerfile...
+     shell: docker build -t ubuntu/pgsql_yr /etc/ansible/postgresql
+     when: pgsql_image != ""
+
+
+   - name: Checking if the containers were created previously. For new install prints 'failed', it's OK!
+     command: docker ps -a | grep pgsql_yr
+     register: pgsql_con
+     ignore_errors: True
+
+   - name: Run the Yandexer Database container
+     shell: docker run -d -p 5432:5432 --name pgsql_yr ubuntu/pgsql_yr
+     when: pgsql_con != ""
+
+   - name: Install nsenter(docker-enter)
+     shell: docker images | grep nsenter
+     register: result
+     ignore_errors: True
+
+   - name: Download nsenter
+     shell: docker run --rm -v /usr/local/bin:/target jpetazzo/nsenter
+     when: result.stdout == ""
+
+   - name: Check if symlink was created before
+     stat: path=/usr/bin/docker-enter
+     register: sym
+
+   - name: Creating symlink for docker-enter in /usr/bin
+     file: src=/usr/local/bin/docker-enter dest=/usr/bin/docker-enter state=link
+     when: sym.stat.exists == false
+
+
+
+   - include: cluster-configuring.yml
